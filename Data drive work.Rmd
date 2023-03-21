@@ -1,0 +1,129 @@
+---
+title: "Themed dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    theme:
+      bg: "#101010"
+      fg: "#FDF7F7" 
+      primary: "#ED79F9"
+      base_font:
+        google: Prompt
+      code_font:
+        google: JetBrains Mono
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tm)
+library(syuzhet)
+library(ggplot2)
+library(wordcloud)
+library(twitteR)
+
+
+# Install thematic and un-comment for themed static plots (i.e., ggplot2)
+# thematic::thematic_rmd()
+```
+
+Column {data-width=650 .tabset}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+library(readxl)
+data <- read_excel("D:/Class files/Module 3/INTM577/Twitter_Dataset.xlsx")
+str(data)
+data =data.frame(data)
+str(data)
+
+data =head(data,n=50)
+
+
+corpus = iconv(data$text, "latin1", "UTF-8")
+corpus<- Corpus(VectorSource(corpus))
+
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs=corpus
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+corpus=docs
+corpus<- tm_map(corpus,tolower)
+corpus<-tm_map(corpus,removePunctuation)# remove puntuations like , .
+corpus<- tm_map(corpus,removeNumbers)
+cleanset<-tm_map(corpus,removeWords,stopwords('english'))# remove common words
+removeURL<- function(x)gsub('http[[:alnum:]]=','',x)
+cleanset<-tm_map(cleanset,content_transformer(removeURL))
+x=cleanset
+
+
+tdm<-TermDocumentMatrix(cleanset)
+tdm # display information
+
+
+
+
+```
+
+### Chart B
+
+```{r}
+
+tdm<-as.matrix(tdm)
+v=sort(rowSums(tdm))
+
+library(wordcloud)
+w<-data.frame(names(v),v)
+
+colnames(w)<-c('word','freq')
+set.seed(1234)
+wordcloud(words=w$word,freq=w$freq)
+
+
+write.csv(tdm,"tdm.csv")
+#### sentimental analysis #####
+library(syuzhet)
+data=read.csv("tdm.csv")
+mysentiment_tech<-get_nrc_sentiment(data$X)
+
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart C
+
+```{r}
+
+#calculationg total score for each sentiment
+Sentimentscores_tech<-data.frame(colSums(mysentiment_tech[,]))
+names(Sentimentscores_tech)<-"Score"
+Sentimentscores_tech<-cbind("sentiment"=rownames(Sentimentscores_tech),Sentimentscores_tech)
+rownames(Sentimentscores_tech)<-NULL
+Sentimentscores_tech_r=Sentimentscores_tech
+#*************************************************************************************
+library(ggplot2)
+ggplot(data=Sentimentscores_tech,aes(x=sentiment,y=Score))+
+  geom_bar(aes(fill=sentiment),stat = "identity")+
+  theme(legend.position="none")+
+  xlab("Sentiments")+ylab("scores")+ggtitle("R Program")
+
+
+
+
+```
+
+### Chart D
+
+```{r}
+
+tail(w,n=5)
+
+
+
+```
+
